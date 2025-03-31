@@ -1,15 +1,18 @@
-function fetchData() {
-    const localURL = "http://127.0.0.1:5000/test";
-    const renderURL = "https://your-render-url.onrender.com/test";  // Replace with actual Render URL
+const testBtn = document.getElementById('testBtn');
+const resultDiv = document.getElementById('result');
 
-    fetch(localURL)
-        .then(response => response.json())
-        .then(data => document.getElementById("response").innerText = data.message)
-        .catch(error => {
-            console.error("Local server failed, trying Render:", error);
-            fetch(renderURL)
-                .then(response => response.json())
-                .then(data => document.getElementById("response").innerText = data.message)
-                .catch(err => console.error("Both local and Render servers failed:", err));
-        });
+testBtn.addEventListener('click', testConnection);
+
+async function testConnection() {
+    try {
+        const response = await fetch('https://dev-playground-8c4p.onrender.com/api/test');
+        const data = await response.json();
+        resultDiv.innerHTML = `
+            <p>Status: ${data.status}</p>
+            <p>Message: ${data.message}</p>
+            <p>Data: ${JSON.stringify(data.data)}</p>
+        `;
+    } catch (error) {
+        resultDiv.innerHTML = `Error: ${error.message}`;
+    }
 }
