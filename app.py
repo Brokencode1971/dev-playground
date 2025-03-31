@@ -1,15 +1,23 @@
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify
+from flask_cors import CORS  # No extra package needed, Flask-Cors is included in Flask
 
 app = Flask(__name__)
 
-@app.route('/')
-def serve_frontend():
-    return send_from_directory('frontend', 'index.html')
+# Minimal CORS setup - will allow all origins (for testing only)
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    return response
 
-@app.route('/test')
-def test_backend():
-    return jsonify({"message": "Frontend is connected to backend!"})
+# Test endpoint
+@app.route('/api/test')
+def test_connection():
+    return jsonify({
+        "status": "success",
+        "message": "Backend is connected!",
+        "data": {"sample": 123}
+    })
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
-
+    app.run()
