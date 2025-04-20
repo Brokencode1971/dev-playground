@@ -1,4 +1,11 @@
-const BACKEND = "https://dev-playground-8c4p.onrender.com";
+// Dynamically choose backend URL based on where the page is hosted
+const isLocal =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1";
+
+const BACKEND = isLocal
+  ? "http://127.0.0.1:5000"
+  : "https://dev-playground-8c4p.onrender.com";
 
 document.getElementById("searchForm").addEventListener("submit", function(e) {
     e.preventDefault();
