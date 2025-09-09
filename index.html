@@ -1,0 +1,796 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>BioCompare — Protein Comparison</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{
+      --accent: #0aa89e; /* teal accent requested */
+      --muted: #6b7280;
+      --bg-band: rgba(10,168,158,0.06); /* very faint teal band */
+      --card: #ffffff;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace;
+      --maxw:1100px;
+    }
+
+    /* Page base */
+    html,body{height:100%}
+    body{
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      max-width:var(--maxw);
+      margin:20px auto;
+      color:#0f1720;
+      padding:0 16px 40px;
+      background:#ffffff;
+    }
+
+    /* HERO: off-white band behind hero */
+    .hero-band {
+      background: linear-gradient(180deg, var(--bg-band) 0%, rgba(255,255,255,0.65) 60%);
+      padding:18px 14px;
+      border-radius:10px;
+      margin-bottom:16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+    }
+    .hero-left { display:flex; gap:12px; align-items:flex-start; }
+    .title-wrap { line-height:1; }
+    .site-title {
+      margin:0;
+      font-size:28px; /* larger title */
+      font-weight:800;
+      color:#0a3b36; /* darker teal-ish for text */
+      letter-spacing:-0.4px;
+      position:relative;
+      /* soft embossed / inset look (subtle inner-shadow feel) */
+      text-shadow: 0 1px 0 #ffffff, /* light top */
+                   0 -1px 0 rgba(0,0,0,0.06); /* faint inner dark line */
+    }
+    .site-tagline { margin:6px 0 0; color:var(--muted); font-size:13px; }
+
+    /* subtle note box on the right of hero */
+    .note {
+      font-size:13px;
+      color:#334;
+      background: linear-gradient(180deg, #ffffff, #fbfffe);
+      border:1px solid rgba(10,168,158,0.12);
+      padding:10px 14px;
+      border-radius:10px;
+      max-width:520px;
+      box-shadow: 0 6px 18px rgba(10,20,20,0.03);
+    }
+    .note b { color:#0f1720; }
+
+    /* inputs and controls */
+    label{display:block;margin-top:12px;font-weight:600}
+    input[type="text"]{
+      width:100%;
+      padding:10px;
+      border:1px solid #e6eef0;
+      border-radius:8px;
+      font-family:var(--mono);
+      background: #fbfffe;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.02) inset;
+    }
+
+    .field-row { display:flex; gap:28px; align-items:flex-start; margin-top:12px; }
+    .field-row .input-col { flex:0 0 50%; }
+
+    /* Example card */
+    .example-box {
+      position:relative; /* for copy button placement */
+      background:#fbfffe;
+      border:1px solid #e6eef0;
+      border-radius:8px;
+      padding:12px 12px 14px 12px;
+      font-family:var(--mono);
+      font-size:13px;
+      color:#111;
+      box-sizing:border-box;
+      width:420px;
+      max-width:48vw;
+    }
+
+    .example-title { font-weight:700; margin:0 0 8px; color:#0f1720; font-family:inherit; font-size:14px;}
+    .example-row { display:flex; gap:8px; align-items:center; margin-bottom:6px; }
+    .example-row strong { width:18px; display:inline-block; font-weight:700; }
+
+    /* copy button inside example */
+    .example-copy-btn {
+      position:absolute;
+      right:10px;
+      top:10px;
+      background:var(--accent);
+      color:#fff;
+      border:0;
+      padding:6px 10px;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:700;
+      font-size:12px;
+      box-shadow:0 6px 20px rgba(10,20,20,0.06);
+    }
+    .example-copy-btn:active { transform:translateY(1px); }
+    .example-copy-btn[disabled]{ opacity:.6; cursor:default; }
+
+    .copy-id {
+      display:inline-block;
+      padding:2px 8px;
+      border:1px solid #e6eef0;
+      border-radius:6px;
+      background:#ffffff;
+      cursor:pointer;
+      user-select:none;
+      font-family:var(--mono);
+      font-size:13px;
+    }
+    .copy-id:hover { background:#f0fdfa; border-color:#c8efea; }
+    .copy-id.copied { background:#eafff8; border-color:#8be4d9; }
+
+    .tooltip-copied {
+      position:fixed;
+      z-index:9999;
+      pointer-events:none;
+      background:var(--accent);
+      color:#fff;
+      padding:6px 8px;
+      border-radius:6px;
+      font-size:12px;
+      box-shadow:0 6px 18px rgba(10,20,20,0.12);
+      opacity:0;
+      transform:translate(-50%, -6px);
+      transition:opacity .15s ease, transform .15s ease;
+    }
+
+    /* grid layout to place example box at far right spanning both inputs */
+    .fields-grid { display:grid; grid-template-columns: 1fr auto; column-gap:28px; row-gap:12px; align-items:start; }
+    .fields-grid .input-col { grid-column:1; }
+    .fields-grid .example-span { grid-column:2; grid-row:1 / span 2; justify-self:end; }
+
+    button{
+      margin-top:8px;
+      padding:10px 14px;
+      border-radius:8px;
+      border:0;
+      background:var(--accent);
+      color:#fff;
+      cursor:pointer;
+      font-weight:700;
+    }
+    button:disabled{opacity:.6;cursor:default}
+
+    .meta{font-size:13px;color:var(--muted);margin-top:8px}
+    .spinner{
+      display:inline-block;width:12px;height:12px;border-radius:50%;
+      border:2px solid rgba(0,0,0,0.12);border-top-color:var(--accent);
+      animation:spin .8s linear infinite;vertical-align:middle;margin-left:8px
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* layout */
+    .container { display:flex; gap:18px; margin-top:14px; align-items:flex-start; }
+    .left { width:160px; }
+    .left .controls {
+      background: linear-gradient(180deg, #ffffff, #fbfffe);
+      border:1px solid #eef6f4;
+      border-radius:10px;
+      padding:12px;
+      box-shadow:0 6px 18px rgba(10,20,20,0.02);
+    }
+    .icon-btn { display:flex; align-items:center; gap:8px; padding:8px; border-radius:8px; cursor:pointer; margin-bottom:8px; user-select:none; transition:background .12s, color .12s; }
+    .icon-btn:hover { background:rgba(10,168,158,0.06); }
+    .icon-btn.active { background:var(--accent); color:#fff; }
+    .icon-emoji { font-size:20px; width:28px; text-align:center; }
+    .small { font-size:13px; color:#444; }
+
+    .right { flex:1; min-height:320px; }
+    .panel { border-radius:10px; border:1px solid #eef6f4; padding:14px; margin-bottom:12px; background:var(--card); box-shadow:0 6px 18px rgba(10,20,20,0.03); }
+    .panel h2 { margin:0 0 8px; font-size:15px; display:flex; justify-content:space-between; align-items:center; }
+    .venn-container { width:100%; height:300px; display:flex; align-items:center; justify-content:center; }
+    .stats { font-size:13px; color:#333; margin-top:8px; }
+
+    /* table panel (vertical listing) */
+    .table-panel { display:none; border-radius:10px; border:1px solid #eef6f4; padding:12px; background:var(--card); box-shadow:0 6px 18px rgba(10,20,20,0.03); margin-bottom:12px; }
+    .table-actions { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+    .download-btn { background:#0a7f72; color:#fff; border:0; padding:8px 10px; border-radius:8px; cursor:pointer; font-weight:700; }
+    .download-btn:disabled { opacity:.6; cursor:default; }
+    table.compare { width:100%; border-collapse:collapse; font-size:13px; }
+    table.compare th, table.compare td { text-align:left; padding:8px 10px; border-bottom:1px solid #eef6f4; }
+    table.compare th { font-weight:700; background: #fbfffe; position:sticky; top:0; z-index:1; }
+    .no-data { color:var(--muted); padding:12px 0; }
+
+    #output { white-space:pre-wrap; background:#0f1720; color:#e6eef8; padding:12px; border-radius:8px; margin-top:14px; min-height:140px; overflow:auto; border:1px solid #253046; display:none; }
+
+    /* table comparison columns */
+    .compare-headers { display:flex; gap:12px; }
+    .col { flex:1; border:1px solid #edf7f6; border-radius:8px; padding:10px; min-height:140px; max-height:320px; overflow:auto; background:#fbfffe; }
+    .col h4 { margin:0 0 6px; font-size:13px; color:#0f1720; }
+    .item { font-family:var(--mono); font-size:13px; padding:6px 0; border-bottom:1px dashed rgba(0,0,0,0.04); color:#111; }
+
+    .hint { font-size:13px; color:var(--muted); margin-top:8px; }
+
+    /* responsive */
+    @media (max-width:880px) {
+      .container { flex-direction:column; }
+      .left { width:100%; order:2; }
+      .right { order:1; }
+      .note { max-width:100%; }
+      .site-title { font-size:22px; }
+      .field-row { flex-direction:column; align-items:stretch; }
+      .field-row .input-col { flex:1 1 auto; }
+      .fields-grid { display:block; }
+      .example-box { width:auto; max-width:100%; }
+      table.compare th, table.compare td { padding:8px 6px; }
+    }
+  </style>
+
+  <!-- d3 + venn.js from CDN -->
+  <script src="https://unpkg.com/d3@5"></script>
+  <script src="https://unpkg.com/venn.js@0.2.20/build/venn.min.js"></script>
+</head>
+<body>
+  <!-- HERO band with off-white strip -->
+  <div class="hero-band" role="banner" aria-label="BioCompare header">
+    <div class="hero-left">
+      <div class="title-wrap">
+        <h1 class="site-title">BioCompare</h1>
+        <p class="site-tagline">Quickly explore and compare proteins from multiple trusted sources.</p>
+      </div>
+    </div>
+
+    <div class="note" aria-hidden="false">
+      <div><strong>Demo sources:</strong> Ensembl, UniProt, and NCBI Gene.</div>
+      <div style="margin-top:6px;color:#334;font-size:13px;">
+        Some annotations may be incomplete — the aggregation pipeline is under active development and will be expanded in upcoming releases.
+      </div>
+    </div>
+  </div>
+
+  <!-- input area -->
+  <div>
+    <div class="fields-grid">
+      <div class="input-col">
+        <label for="ensembl1">Ensembl ID A</label>
+        <input id="ensembl1" type="text" placeholder="ENSG00000141510" />
+      </div>
+
+      <div class="example-box example-span" aria-label="Examples">
+        <button class="example-copy-btn" id="copyExampleBtn" title="Copy example IDs">Copy example</button>
+        <div class="example-title">Example to see the intersection representation.</div>
+
+        <div class="example-row"><strong>A</strong>: <span class="copy-id" data-copy="ENSG00000124610">ENSG00000124610</span></div>
+        <div class="example-row"><strong>B</strong>: <span class="copy-id" data-copy="ENSG00000168298">ENSG00000168298</span></div>
+      </div>
+
+      <div class="input-col">
+        <label for="ensembl2">Ensembl ID B</label>
+        <input id="ensembl2" type="text" placeholder="ENSG00000139618" />
+      </div>
+    </div>
+
+    <div class="meta">This page POSTS the two IDs to your server and uses the returned JSON for frontend comparisons and a comparison table.</div>
+    <button id="submit">Submit</button>
+    <span id="status" class="meta" aria-live="polite"></span>
+  </div>
+
+  <div class="container">
+    <div class="left">
+      <div class="controls">
+        <div id="btn-goids" class="icon-btn" title="Compare by GO IDs">
+          <span class="icon-emoji">🧬</span>
+          <div>
+            <div style="font-weight:700">GO IDs</div>
+            <div class="small">Compare by GO identifiers</div>
+          </div>
+        </div>
+
+        <div id="btn-goterms" class="icon-btn" title="Compare by GO Terms">
+          <span class="icon-emoji">📚</span>
+          <div>
+            <div style="font-weight:700">GO Terms</div>
+            <div class="small">Compare by GO term strings</div>
+          </div>
+        </div>
+
+        <div id="btn-symbols" class="icon-btn" title="Compare by Gene Symbol">
+          <span class="icon-emoji">🔤</span>
+          <div>
+            <div style="font-weight:700">Gene Symbol</div>
+            <div class="small">Compare by gene symbol (fallback: Ensembl)</div>
+          </div>
+        </div>
+
+        <!-- changed label to Show Table (only displays table panel) -->
+        <div id="btn-table" class="icon-btn" title="Show comparison table (download CSV)">
+          <span class="icon-emoji">📋</span>
+          <div>
+            <div style="font-weight:700">Show Table</div>
+            <div class="small">Vertical table + Download CSV</div>
+          </div>
+        </div>
+
+        <div class="hint">Click an option to open the right panel (A vs B) — venn + table.</div>
+      </div>
+    </div>
+
+    <div class="right">
+      <!-- GO IDs panel -->
+      <div id="panel-goids" class="panel" style="display:none">
+        <h2>GO IDs <span id="goids-count"></span></h2>
+        <div id="venn-goids" class="venn-container" aria-hidden="true"></div>
+        <div id="goids-stats" class="stats"></div>
+
+        <div class="compare-headers" style="margin-top:12px">
+          <div class="col" id="goids-col-a"><h4>A only</h4><div id="goids-a-list"></div></div>
+          <div class="col" id="goids-col-both"><h4>Shared</h4><div id="goids-both-list"></div></div>
+          <div class="col" id="goids-col-b"><h4>B only</h4><div id="goids-b-list"></div></div>
+        </div>
+      </div>
+
+      <!-- GO Terms panel -->
+      <div id="panel-goterms" class="panel" style="display:none">
+        <h2>GO Terms <span id="goterms-count"></span></h2>
+        <div id="venn-goterms" class="venn-container" aria-hidden="true"></div>
+        <div id="goterms-stats" class="stats"></div>
+
+        <div class="compare-headers" style="margin-top:12px">
+          <div class="col" id="goterms-col-a"><h4>A only</h4><div id="goterms-a-list"></div></div>
+          <div class="col" id="goterms-col-both"><h4>Shared</h4><div id="goterms-both-list"></div></div>
+          <div class="col" id="goterms-col-b"><h4>B only</h4><div id="goterms-b-list"></div></div>
+        </div>
+      </div>
+
+      <!-- Symbols panel -->
+      <div id="panel-symbols" class="panel" style="display:none">
+        <h2>Gene Symbol <span id="symbols-count"></span></h2>
+        <div id="venn-symbols" class="venn-container" aria-hidden="true"></div>
+        <div id="symbols-stats" class="stats"></div>
+
+        <div class="compare-headers" style="margin-top:12px">
+          <div class="col" id="symbols-col-a"><h4>A only</h4><div id="symbols-a-list"></div></div>
+          <div class="col" id="symbols-col-both"><h4>Shared</h4><div id="symbols-both-list"></div></div>
+          <div class="col" id="symbols-col-b"><h4>B only</h4><div id="symbols-b-list"></div></div>
+        </div>
+      </div>
+
+      <!-- Table panel (vertical listing) -->
+      <div id="table-panel" class="table-panel" role="region" aria-label="Comparison table">
+        <div class="table-actions">
+          <button id="downloadCsvBtn" class="download-btn" disabled>Download CSV</button>
+          <div class="meta" id="table-meta" style="margin-left:8px;color:var(--muted)">No data yet. Click Submit then Show Table.</div>
+        </div>
+
+        <div id="table-container" aria-live="polite">
+          <!-- table injected here -->
+        </div>
+      </div>
+
+      <!-- Raw JSON output (hidden by default) kept hidden -->
+      <div id="output" aria-hidden="true">Server response will appear here...</div>
+    </div>
+  </div>
+
+<script>
+/* Endpoint */
+const API_ENDPOINT = "http://127.0.0.1:5000/annotate";
+
+/* DOM refs */
+const en1 = document.getElementById('ensembl1');
+const en2 = document.getElementById('ensembl2');
+const btn = document.getElementById('submit');
+const out = document.getElementById('output');
+const status = document.getElementById('status');
+
+const btnGoIds = document.getElementById('btn-goids');
+const btnGoTerms = document.getElementById('btn-goterms');
+const btnSymbols = document.getElementById('btn-symbols');
+const btnTable = document.getElementById('btn-table');
+
+const panelGoIds = document.getElementById('panel-goids');
+const panelGoTerms = document.getElementById('panel-goterms');
+const panelSymbols = document.getElementById('panel-symbols');
+const tablePanel = document.getElementById('table-panel');
+
+const goidsAList = document.getElementById('goids-a-list');
+const goidsBothList = document.getElementById('goids-both-list');
+const goidsBList = document.getElementById('goids-b-list');
+
+const gotermsAList = document.getElementById('goterms-a-list');
+const gotermsBothList = document.getElementById('goterms-both-list');
+const gotermsBList = document.getElementById('goterms-b-list');
+
+const symbolsAList = document.getElementById('symbols-a-list');
+const symbolsBothList = document.getElementById('symbols-both-list');
+const symbolsBList = document.getElementById('symbols-b-list');
+
+const goidsCount = document.getElementById('goids-count');
+const gotermsCount = document.getElementById('goterms-count');
+const symbolsCount = document.getElementById('symbols-count');
+
+const goidsStats = document.getElementById('goids-stats');
+const gotermsStats = document.getElementById('goterms-stats');
+const symbolsStats = document.getElementById('symbols-stats');
+
+const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+const tableContainer = document.getElementById('table-container');
+const tableMeta = document.getElementById('table-meta');
+
+let lastResponse = null;
+
+/* small helpers */
+function setBusy(b, msg) {
+  btn.disabled = b;
+  status.textContent = msg || "";
+  const existing = document.querySelector('.spinner');
+  if (b && !existing) {
+    const s = document.createElement('span'); s.className = 'spinner'; status.appendChild(s);
+  } else if (!b && existing) existing.remove();
+}
+
+function tryPretty(text) {
+  try { return JSON.stringify(JSON.parse(text), null, 2); } catch(e) { return text; }
+}
+
+async function postJSON(body){
+  return fetch(API_ENDPOINT, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'Accept': '*/*'},
+    body: JSON.stringify(body)
+  });
+}
+
+async function getFallback(params){
+  const url = new URL(API_ENDPOINT);
+  Object.keys(params).forEach(k => url.searchParams.set(k, params[k] || ''));
+  return fetch(url.toString(), {method:'GET', headers:{'Accept':'*/*'}});
+}
+
+/* normalize values (trim, collapse whitespace) */
+function normalizeString(x) {
+  if (x === null || x === undefined) return "";
+  return String(x).trim();
+}
+function normalizeGOId(x) { return normalizeString(x).toUpperCase(); }
+function normalizeGOTerm(x) { return normalizeString(x); }
+function normalizeSymbol(x) { return normalizeString(x); }
+
+/* build arrays/sets for each axis from response */
+function buildSets(resp, axis) {
+  if (!resp || !resp.annotations || resp.annotations.length < 2) return null;
+  const a0 = resp.annotations[0], a1 = resp.annotations[1];
+
+  if (axis === 'go_ids') {
+    const arrA = Array.isArray(a0.go_ids) ? a0.go_ids.map(normalizeGOId).filter(Boolean) : [];
+    const arrB = Array.isArray(a1.go_ids) ? a1.go_ids.map(normalizeGOId).filter(Boolean) : [];
+    return { arrA, arrB, setA: new Set(arrA), setB: new Set(arrB) };
+  } else if (axis === 'go_terms') {
+    const arrA = Array.isArray(a0.go_terms) ? a0.go_terms.map(normalizeGOTerm).filter(Boolean) : [];
+    const arrB = Array.isArray(a1.go_terms) ? a1.go_terms.map(normalizeGOTerm).filter(Boolean) : [];
+    return { arrA, arrB, setA: new Set(arrA), setB: new Set(arrB) };
+  } else if (axis === 'symbol') {
+    const valA = (a0.gene_symbol && a0.gene_symbol.trim()) ? a0.gene_symbol.trim() : a0.ensembl_id;
+    const valB = (a1.gene_symbol && a1.gene_symbol.trim()) ? a1.gene_symbol.trim() : a1.ensembl_id;
+    return { arrA: [normalizeSymbol(valA)], arrB: [normalizeSymbol(valB)], setA: new Set([valA]), setB: new Set([valB]) };
+  }
+  return null;
+}
+
+/* set helpers */
+function setIntersection(A,B){ const out=new Set(); for(const x of A) if(B.has(x)) out.add(x); return out; }
+function setDifference(A,B){ const out=new Set(); for(const x of A) if(!B.has(x)) out.add(x); return out; }
+function unionSorted(A,B){ return Array.from(new Set([...A,...B])).sort(); }
+
+/* draw venn */
+function drawVenn(containerId, setA, setB, labelA, labelB, statsEl, countSpan) {
+  const container = d3.select("#" + containerId);
+  container.selectAll("*").remove();
+
+  const inter = setIntersection(setA, setB);
+  const data = [
+    { sets: [0], size: setA.size, label: labelA },
+    { sets: [1], size: setB.size, label: labelB },
+    { sets: [0,1], size: inter.size, label: labelA + " ∩ " + labelB }
+  ];
+
+  try {
+    venn.VennDiagram().width(container.node().clientWidth).height(container.node().clientHeight)(container.datum(data), data);
+  } catch(e) {
+    container.selectAll("*").remove();
+  }
+
+  const onlyA = setDifference(setA, setB).size;
+  const onlyB = setDifference(setB, setA).size;
+  const unionSize = unionSorted(setA, setB).length;
+
+  statsEl.innerHTML = `<strong>${labelA} only:</strong> ${onlyA} &nbsp;&nbsp; <strong>Intersection:</strong> ${inter.size} &nbsp;&nbsp; <strong>${labelB} only:</strong> ${onlyB} <br><strong>Union (unique):</strong> ${unionSize}`;
+
+  if (countSpan) countSpan.textContent = `(${setA.size} , ${setB.size})`;
+
+  return {
+    onlyA: Array.from(setDifference(setA, setB)).sort(),
+    onlyB: Array.from(setDifference(setB, setA)).sort(),
+    shared: Array.from(inter).sort()
+  };
+}
+
+/* render column lists */
+function renderColumnList(containerEl, items) {
+  containerEl.innerHTML = '';
+  if (!items || items.length === 0) {
+    containerEl.innerHTML = '<div class="item" style="color:#888">—</div>';
+    return;
+  }
+  for (const it of items) {
+    const d = document.createElement('div');
+    d.className = 'item';
+    d.textContent = it;
+    containerEl.appendChild(d);
+  }
+}
+
+/* collapse/show panels and manage active classes */
+function collapseAll() {
+  panelGoIds.style.display = 'none';
+  panelGoTerms.style.display = 'none';
+  panelSymbols.style.display = 'none';
+  tablePanel.style.display = 'none';
+  out.style.display = 'none';
+  [btnGoIds, btnGoTerms, btnSymbols, btnTable].forEach(b => b.classList.remove('active'));
+}
+
+function showPanel(axis) {
+  if (!lastResponse) { alert('No server response stored yet. Click Submit.'); return; }
+  if (!lastResponse.annotations || lastResponse.annotations.length < 2) { alert('Server response must contain exactly two annotations (A and B).'); return; }
+
+  collapseAll();
+
+  if (axis === 'go_ids') {
+    btnGoIds.classList.add('active');
+    panelGoIds.style.display = 'block';
+    const { setA, setB } = buildSets(lastResponse, 'go_ids');
+    const res = drawVenn('venn-goids', setA, setB, 'A', 'B', goidsStats, goidsCount);
+    renderColumnList(goidsAList, res.onlyA);
+    renderColumnList(goidsBothList, res.shared);
+    renderColumnList(goidsBList, res.onlyB);
+  } else if (axis === 'go_terms') {
+    btnGoTerms.classList.add('active');
+    panelGoTerms.style.display = 'block';
+    const { setA, setB } = buildSets(lastResponse, 'go_terms');
+    const res = drawVenn('venn-goterms', setA, setB, 'A', 'B', gotermsStats, gotermsCount);
+    renderColumnList(gotermsAList, res.onlyA);
+    renderColumnList(gotermsBothList, res.shared);
+    renderColumnList(gotermsBList, res.onlyB);
+  } else if (axis === 'symbol') {
+    btnSymbols.classList.add('active');
+    panelSymbols.style.display = 'block';
+    const { setA, setB } = buildSets(lastResponse, 'symbol');
+    const res = drawVenn('venn-symbols', setA, setB, 'A', 'B', symbolsStats, symbolsCount);
+    renderColumnList(symbolsAList, res.onlyA);
+    renderColumnList(symbolsBothList, res.shared);
+    renderColumnList(symbolsBList, res.onlyB);
+  } else if (axis === 'table') {
+    btnTable.classList.add('active');
+    tablePanel.style.display = 'block';
+    renderTableFromResponse(lastResponse);
+  }
+}
+
+/* listeners */
+btnGoIds.addEventListener('click', ()=> showPanel('go_ids'));
+btnGoTerms.addEventListener('click', ()=> showPanel('go_terms'));
+btnSymbols.addEventListener('click', ()=> showPanel('symbol'));
+btnTable.addEventListener('click', ()=> showPanel('table'));
+
+/* Submit logic (POST then GET fallback). Store response in lastResponse */
+btn.addEventListener('click', async ()=> {
+  out.textContent = '';
+  collapseAll();
+  const id1 = en1.value.trim(), id2 = en2.value.trim();
+  if (!id1 && !id2) { out.textContent = 'Enter at least one Ensembl ID.'; return; }
+
+  setBusy(true, 'Sending request...');
+  let resp = null;
+  try { resp = await postJSON({ id1: id1 || null, id2: id2 || null }); } catch(e){ resp = null; }
+
+  if (!resp || (resp.status >= 400 && resp.status !== 400)) {
+    setBusy(true, 'POST failed — trying GET fallback...');
+    try { resp = await getFallback({ id1, id2 }); } catch(e){ resp = null; }
+  }
+
+  if (!resp) {
+    out.textContent = 'Request failed (network/CORS). Make sure server is running at http://127.0.0.1:5000';
+    setBusy(false, 'Error');
+    return;
+  }
+
+  const text = await resp.text();
+  let parsed = null;
+  try { parsed = JSON.parse(text); } catch(e) { parsed = null; }
+
+  lastResponse = parsed || { raw: text };
+  // keep output hidden by default (we use table)
+  out.textContent = tryPretty(text);
+  // replaced terse "HTTP 200 OK" message with a friendlier status string
+  setBusy(false, `Response received — ${resp.status} ${resp.statusText}`);
+});
+
+/* ---------------------------
+   TABLE + CSV generation
+   --------------------------- */
+
+/*
+  Build rows in vertical fashion:
+  Each row -> { ensembl_id, gene_symbol, go_id, go_term }
+  If a gene has zero GO terms, include one row with empty go_id/go_term.
+*/
+function buildTableRowsFromResponse(resp) {
+  const rows = [];
+  if (!resp || !resp.annotations || resp.annotations.length === 0) return rows;
+
+  for (const ann of resp.annotations) {
+    const enid = normalizeString(ann.ensembl_id || "");
+    const symbol = normalizeString(ann.gene_symbol || "");
+    // Use arrays (safely)
+    const goIds = Array.isArray(ann.go_ids) ? ann.go_ids.slice() : [];
+    const goTerms = Array.isArray(ann.go_terms) ? ann.go_terms.slice() : [];
+
+    // If there are GO IDs, list each on its own row (vertical)
+    if (goIds.length === 0) {
+      rows.push({ ensembl_id: enid, gene_symbol: symbol, go_id: "", go_term: "" });
+    } else {
+      // If goTerms length differs, fallback to empty strings for missing indexes
+      for (let i = 0; i < goIds.length; i++) {
+        const gid = normalizeString(goIds[i] || "");
+        const gterm = normalizeString(goTerms[i] || "");
+        rows.push({ ensembl_id: enid, gene_symbol: symbol, go_id: gid, go_term: gterm });
+      }
+    }
+  }
+  return rows;
+}
+
+/* Render the table (vertical list) into tableContainer and enable download */
+function renderTableFromResponse(resp) {
+  const rows = buildTableRowsFromResponse(resp);
+  tableContainer.innerHTML = '';
+  if (rows.length === 0) {
+    tableContainer.innerHTML = '<div class="no-data">No table data available for the current response.</div>';
+    downloadCsvBtn.disabled = true;
+    tableMeta.textContent = 'No data to download.';
+    return;
+  }
+
+  // Build HTML table
+  const table = document.createElement('table');
+  table.className = 'compare';
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  ['Ensembl ID','Gene symbol','GO ID','GO term'].forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    headerRow.appendChild(th);
+  });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    const td1 = document.createElement('td'); td1.textContent = r.ensembl_id; tr.appendChild(td1);
+    const td2 = document.createElement('td'); td2.textContent = r.gene_symbol; tr.appendChild(td2);
+    const td3 = document.createElement('td'); td3.textContent = r.go_id; tr.appendChild(td3);
+    const td4 = document.createElement('td'); td4.textContent = r.go_term; tr.appendChild(td4);
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  tableContainer.appendChild(table);
+
+  // enable download and set meta text
+  downloadCsvBtn.disabled = false;
+  tableMeta.textContent = `${rows.length} rows — Download as CSV.`;
+  // store last CSV data for quick download
+  downloadCsvBtn._csvRows = rows;
+}
+
+/* Convert rows array -> CSV string */
+function rowsToCsv(rows) {
+  const esc = (v) => {
+    if (v === null || v === undefined) return '';
+    const s = String(v);
+    // escape quotes by doubling
+    if (s.includes('"') || s.includes(',') || s.includes('\n') || s.includes('\r')) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  };
+  const header = ['Ensembl ID','Gene symbol','GO ID','GO term'];
+  const lines = [header.map(esc).join(',')];
+  for (const r of rows) {
+    lines.push([r.ensembl_id, r.gene_symbol, r.go_id, r.go_term].map(esc).join(','));
+  }
+  return lines.join('\n');
+}
+
+/* Download CSV button handler */
+downloadCsvBtn.addEventListener('click', () => {
+  const rows = downloadCsvBtn._csvRows || [];
+  if (!rows || rows.length === 0) return;
+  const csv = rowsToCsv(rows);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const ts = new Date().toISOString().replace(/[:.]/g,'-');
+  a.download = `biocompare_table_${ts}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+/* click-to-copy for example IDs (individual) and a top-right copy button for both */
+document.addEventListener('click', function(e){
+  const target = e.target;
+
+  // individual copy spans
+  if (target && target.classList && target.classList.contains('copy-id')) {
+    const value = target.getAttribute('data-copy') || target.textContent;
+    if (!value) return;
+    navigator.clipboard.writeText(value).then(()=>{
+      target.classList.add('copied');
+      // tiny tooltip near the element
+      const tip = document.createElement('div');
+      tip.className = 'tooltip-copied';
+      tip.textContent = 'Copied';
+      document.body.appendChild(tip);
+      const rect = target.getBoundingClientRect();
+      tip.style.left = (rect.left + rect.width/2) + 'px';
+      tip.style.top = (rect.top - 10) + 'px';
+      requestAnimationFrame(()=>{ tip.style.opacity = '1'; tip.style.transform = 'translate(-50%, -10px)'; });
+      setTimeout(()=>{ tip.style.opacity = '0'; tip.style.transform = 'translate(-50%, -6px)'; setTimeout(()=> tip.remove(), 200); }, 900);
+      setTimeout(()=> target.classList.remove('copied'), 900);
+    }).catch(()=>{ /* ignore */ });
+    return;
+  }
+
+  // copy example button - copies both example IDs (does not auto-fill inputs)
+  if (target && (target.id === 'copyExampleBtn' || (target.closest && target.closest('#copyExampleBtn')))) {
+    const exampleBox = document.querySelector('.example-box');
+    if (!exampleBox) return;
+    const spans = exampleBox.querySelectorAll('.copy-id');
+    const values = [];
+    spans.forEach(s => {
+      const v = s.getAttribute('data-copy') || s.textContent;
+      if (v && v.trim()) values.push(v.trim());
+    });
+    if (values.length === 0) return;
+    const toCopy = values.join('\t'); // copy both separated by a tab
+    navigator.clipboard.writeText(toCopy).then(()=>{
+      // show floating tooltip near the button
+      const btnEl = document.getElementById('copyExampleBtn');
+      const btnRect = btnEl.getBoundingClientRect();
+      const tip = document.createElement('div');
+      tip.className = 'tooltip-copied';
+      tip.textContent = 'Copied example IDs';
+      document.body.appendChild(tip);
+      tip.style.left = (btnRect.left + btnRect.width/2) + 'px';
+      tip.style.top = (btnRect.top - 8) + 'px';
+      requestAnimationFrame(()=>{ tip.style.opacity = '1'; tip.style.transform = 'translate(-50%, -10px)'; });
+      setTimeout(()=>{ tip.style.opacity = '0'; tip.style.transform = 'translate(-50%, -6px)'; setTimeout(()=> tip.remove(), 200); }, 900);
+    }).catch(()=>{ /* ignore */ });
+    return;
+  }
+});
+</script>
+
+<!-- hidden anchor text for accessibility -->
+<pre id="example-ids" aria-hidden="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;white-space:pre;">
+A: ENSG00000124610
+B: ENSG00000168298
+Example to see the intersection representation.
+</pre>
+</body>
+</html>
