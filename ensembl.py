@@ -711,6 +711,7 @@ if __name__ == "__main__":
         sys.exit(0)
 
     # normal server mode
-    print(f"Starting Ensembl annotation server (no file output) on http://127.0.0.1:5000 — version {VERSION}")
+    print(f"Starting Ensembl annotation server (no file output) on https://dev-playground-8c4p.onrender.com — version {VERSION}")
     # debug=False by default; use an auto-reload dev loop externally if you want hot reload
     app.run(host="0.0.0.0", port=5000, debug=False)
+
