@@ -288,7 +288,6 @@
       </div>
     </div>
 
-    <div class="meta">Submit to see comparisons
     <button id="submit">Submit</button>
     <span id="status" class="meta" aria-live="polite"></span>
   </div>
@@ -584,7 +583,7 @@ btn.addEventListener('click', async ()=> {
   const id1 = en1.value.trim(), id2 = en2.value.trim();
   if (!id1 && !id2) { out.textContent = 'Enter at least one Ensembl ID.'; return; }
 
-  setBusy(true, 'Thinking🤔...');
+  setBusy(true, 'Thinking...🤔');
   let resp = null;
   try { resp = await postJSON({ id1: id1 || null, id2: id2 || null }); } catch(e){ resp = null; }
 
@@ -821,3 +820,4 @@ document.addEventListener('click', function(e){
 </script>
 </body>
 </html>
+
