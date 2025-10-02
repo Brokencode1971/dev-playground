@@ -225,6 +225,23 @@
       .example-box { width:auto; max-width:100%; }
       table.compare th, table.compare td { padding:8px 6px; }
     }
+
+    /* ===== Gene Info card styles (kept here with other styles) ===== */
+    .identity-container { display: flex; gap: 16px; flex-wrap: wrap; margin-top:8px; }
+    .gene-card {
+      flex: 1;
+      min-width: 250px;
+      background: #fbfffe;
+      border: 1px solid #e6eef0;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 13px;
+      box-sizing: border-box;
+    }
+    .gene-card h3 { margin: 0 0 10px; font-size: 14px; border-bottom: 1px solid #e6eef0; padding-bottom: 8px; }
+    .gene-card p { margin: 0 0 6px; }
+    .gene-card p strong { display: inline-block; width: 80px; }
+    .gene-card code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace; background: #f0f3f5; padding: 2px 5px; border-radius: 4px; font-size: 12px; }
   </style>
 
   <!-- d3 + venn.js from CDN -->
@@ -237,14 +254,14 @@
     <div class="hero-left">
       <div class="title-wrap">
         <h1 class="site-title">BioCompare</h1>
-        <p class="site-tagline">Quickly explore and compare proteins from multiple trusted sources.</p>
+        <p class="site-tagline">Quickly explore and compare proteins from multiple trusted sources at one place!</p>
       </div>
     </div>
 
     <div class="note" aria-hidden="false">
       <div><strong>Demo sources:</strong> Ensembl, UniProt, and NCBI Gene.</div>
       <div style="margin-top:6px;color:#334;font-size:13px;">
-        Some annotations may be incomplete — the aggregation pipeline is under active development and will be expanded in upcoming releases.
+        Some annotations may be incomplete, kindly refer to the human related or popular genes for better results. The aggregation pipeline is under active development and will be expanded in upcoming releases.
       </div>
     </div>
   </div>
@@ -271,7 +288,7 @@
       </div>
     </div>
 
-    <div class="meta">This page POSTS the two IDs to your server and uses the returned JSON for frontend comparisons and a comparison table.</div>
+    <div class="meta">Submit to see comparisons
     <button id="submit">Submit</button>
     <span id="status" class="meta" aria-live="polite"></span>
   </div>
@@ -280,7 +297,6 @@
     <div class="left">
       <div class="controls">
         <div id="btn-goids" class="icon-btn" title="Compare by GO IDs">
-          <span class="icon-emoji">🧬</span>
           <div>
             <div style="font-weight:700">GO IDs</div>
             <div class="small">Compare by GO identifiers</div>
@@ -288,32 +304,29 @@
         </div>
 
         <div id="btn-goterms" class="icon-btn" title="Compare by GO Terms">
-          <span class="icon-emoji">📚</span>
           <div>
             <div style="font-weight:700">GO Terms</div>
             <div class="small">Compare by GO term strings</div>
           </div>
         </div>
 
-        <div id="btn-symbols" class="icon-btn" title="Compare by Gene Symbol">
-          <span class="icon-emoji">🔤</span>
+        <!-- REPLACED: Gene Info control (was previously the "Gene Symbol" button) -->
+        <div id="btn-symbols" class="icon-btn" title="Gene Info (show identity)">
           <div>
-            <div style="font-weight:700">Gene Symbol</div>
-            <div class="small">Compare by gene symbol (fallback: Ensembl)</div>
+            <div style="font-weight:700">Gene Info</div>
+            <div class="small">Show identity</div>
           </div>
         </div>
 
         <!-- changed label to Show Table (only displays table panel) -->
         <div id="btn-table" class="icon-btn" title="Show comparison table (download CSV)">
-          <span class="icon-emoji">📋</span>
           <div>
-            <div style="font-weight:700">Show Table</div>
-            <div class="small">Vertical table + Download CSV</div>
+            <div style="font-weight:700">Table</div>
+            <div class="small">Raw Data</div>
           </div>
         </div>
 
-        <div class="hint">Click an option to open the right panel (A vs B) — venn + table.</div>
-      </div>
+        </div>
     </div>
 
     <div class="right">
@@ -343,17 +356,10 @@
         </div>
       </div>
 
-      <!-- Symbols panel -->
+      <!-- REPLACED: Gene Identity panel (shows cards for Gene A / Gene B) -->
       <div id="panel-symbols" class="panel" style="display:none">
-        <h2>Gene Symbol <span id="symbols-count"></span></h2>
-        <div id="venn-symbols" class="venn-container" aria-hidden="true"></div>
-        <div id="symbols-stats" class="stats"></div>
-
-        <div class="compare-headers" style="margin-top:12px">
-          <div class="col" id="symbols-col-a"><h4>A only</h4><div id="symbols-a-list"></div></div>
-          <div class="col" id="symbols-col-both"><h4>Shared</h4><div id="symbols-both-list"></div></div>
-          <div class="col" id="symbols-col-b"><h4>B only</h4><div id="symbols-b-list"></div></div>
-        </div>
+        <h2>Gene Identity</h2>
+        <div id="gene-identity-container" class="identity-container" aria-live="polite"></div>
       </div>
 
       <!-- Table panel (vertical listing) -->
@@ -372,7 +378,6 @@
       <div id="output" aria-hidden="true">Server response will appear here...</div>
     </div>
   </div>
-
 <script>
 /* Endpoint */
 const API_ENDPOINT = "https://dev-playground-8c4p.onrender.com/annotate";
@@ -386,12 +391,12 @@ const status = document.getElementById('status');
 
 const btnGoIds = document.getElementById('btn-goids');
 const btnGoTerms = document.getElementById('btn-goterms');
-const btnSymbols = document.getElementById('btn-symbols');
+const btnGeneInfo = document.getElementById('btn-symbols'); // repurposed as Gene Info
 const btnTable = document.getElementById('btn-table');
 
 const panelGoIds = document.getElementById('panel-goids');
 const panelGoTerms = document.getElementById('panel-goterms');
-const panelSymbols = document.getElementById('panel-symbols');
+const panelGeneInfo = document.getElementById('panel-symbols'); // gene identity panel
 const tablePanel = document.getElementById('table-panel');
 
 const goidsAList = document.getElementById('goids-a-list');
@@ -402,17 +407,11 @@ const gotermsAList = document.getElementById('goterms-a-list');
 const gotermsBothList = document.getElementById('goterms-both-list');
 const gotermsBList = document.getElementById('goterms-b-list');
 
-const symbolsAList = document.getElementById('symbols-a-list');
-const symbolsBothList = document.getElementById('symbols-both-list');
-const symbolsBList = document.getElementById('symbols-b-list');
-
 const goidsCount = document.getElementById('goids-count');
 const gotermsCount = document.getElementById('goterms-count');
-const symbolsCount = document.getElementById('symbols-count');
 
 const goidsStats = document.getElementById('goids-stats');
 const gotermsStats = document.getElementById('goterms-stats');
-const symbolsStats = document.getElementById('symbols-stats');
 
 const downloadCsvBtn = document.getElementById('downloadCsvBtn');
 const tableContainer = document.getElementById('table-container');
@@ -455,7 +454,6 @@ function normalizeString(x) {
 }
 function normalizeGOId(x) { return normalizeString(x).toUpperCase(); }
 function normalizeGOTerm(x) { return normalizeString(x); }
-function normalizeSymbol(x) { return normalizeString(x); }
 
 /* build arrays/sets for each axis from response */
 function buildSets(resp, axis) {
@@ -470,10 +468,6 @@ function buildSets(resp, axis) {
     const arrA = Array.isArray(a0.go_terms) ? a0.go_terms.map(normalizeGOTerm).filter(Boolean) : [];
     const arrB = Array.isArray(a1.go_terms) ? a1.go_terms.map(normalizeGOTerm).filter(Boolean) : [];
     return { arrA, arrB, setA: new Set(arrA), setB: new Set(arrB) };
-  } else if (axis === 'symbol') {
-    const valA = (a0.gene_symbol && a0.gene_symbol.trim()) ? a0.gene_symbol.trim() : a0.ensembl_id;
-    const valB = (a1.gene_symbol && a1.gene_symbol.trim()) ? a1.gene_symbol.trim() : a1.ensembl_id;
-    return { arrA: [normalizeSymbol(valA)], arrB: [normalizeSymbol(valB)], setA: new Set([valA]), setB: new Set([valB]) };
   }
   return null;
 }
@@ -535,42 +529,41 @@ function renderColumnList(containerEl, items) {
 function collapseAll() {
   panelGoIds.style.display = 'none';
   panelGoTerms.style.display = 'none';
-  panelSymbols.style.display = 'none';
+  panelGeneInfo.style.display = 'none';
   tablePanel.style.display = 'none';
   out.style.display = 'none';
-  [btnGoIds, btnGoTerms, btnSymbols, btnTable].forEach(b => b.classList.remove('active'));
+  [btnGoIds, btnGoTerms, btnGeneInfo, btnTable].forEach(b => b.classList.remove('active'));
 }
 
 function showPanel(axis) {
   if (!lastResponse) { alert('No server response stored yet. Click Submit.'); return; }
-  if (!lastResponse.annotations || lastResponse.annotations.length < 2) { alert('Server response must contain exactly two annotations (A and B).'); return; }
+  if (!lastResponse.annotations || lastResponse.annotations.length < 2) { alert('Server response must contain at least two annotations (A and B).'); return; }
 
   collapseAll();
 
   if (axis === 'go_ids') {
     btnGoIds.classList.add('active');
     panelGoIds.style.display = 'block';
-    const { setA, setB } = buildSets(lastResponse, 'go_ids');
-    const res = drawVenn('venn-goids', setA, setB, 'A', 'B', goidsStats, goidsCount);
+    const sets = buildSets(lastResponse, 'go_ids');
+    if (!sets) return;
+    const res = drawVenn('venn-goids', sets.setA, sets.setB, 'A', 'B', goidsStats, goidsCount);
     renderColumnList(goidsAList, res.onlyA);
     renderColumnList(goidsBothList, res.shared);
     renderColumnList(goidsBList, res.onlyB);
   } else if (axis === 'go_terms') {
     btnGoTerms.classList.add('active');
     panelGoTerms.style.display = 'block';
-    const { setA, setB } = buildSets(lastResponse, 'go_terms');
-    const res = drawVenn('venn-goterms', setA, setB, 'A', 'B', gotermsStats, gotermsCount);
+    const sets = buildSets(lastResponse, 'go_terms');
+    if (!sets) return;
+    const res = drawVenn('venn-goterms', sets.setA, sets.setB, 'A', 'B', gotermsStats, gotermsCount);
     renderColumnList(gotermsAList, res.onlyA);
     renderColumnList(gotermsBothList, res.shared);
     renderColumnList(gotermsBList, res.onlyB);
-  } else if (axis === 'symbol') {
-    btnSymbols.classList.add('active');
-    panelSymbols.style.display = 'block';
-    const { setA, setB } = buildSets(lastResponse, 'symbol');
-    const res = drawVenn('venn-symbols', setA, setB, 'A', 'B', symbolsStats, symbolsCount);
-    renderColumnList(symbolsAList, res.onlyA);
-    renderColumnList(symbolsBothList, res.shared);
-    renderColumnList(symbolsBList, res.onlyB);
+  } else if (axis === 'geneinfo') {
+    btnGeneInfo.classList.add('active');
+    panelGeneInfo.style.display = 'block';
+    // render cards from lastResponse
+    renderGeneIdentity(lastResponse);
   } else if (axis === 'table') {
     btnTable.classList.add('active');
     tablePanel.style.display = 'block';
@@ -581,7 +574,7 @@ function showPanel(axis) {
 /* listeners */
 btnGoIds.addEventListener('click', ()=> showPanel('go_ids'));
 btnGoTerms.addEventListener('click', ()=> showPanel('go_terms'));
-btnSymbols.addEventListener('click', ()=> showPanel('symbol'));
+btnGeneInfo.addEventListener('click', ()=> showPanel('geneinfo'));
 btnTable.addEventListener('click', ()=> showPanel('table'));
 
 /* Submit logic (POST then GET fallback). Store response in lastResponse */
@@ -591,7 +584,7 @@ btn.addEventListener('click', async ()=> {
   const id1 = en1.value.trim(), id2 = en2.value.trim();
   if (!id1 && !id2) { out.textContent = 'Enter at least one Ensembl ID.'; return; }
 
-  setBusy(true, 'Sending request...');
+  setBusy(true, 'Thinking🤔...');
   let resp = null;
   try { resp = await postJSON({ id1: id1 || null, id2: id2 || null }); } catch(e){ resp = null; }
 
@@ -601,7 +594,7 @@ btn.addEventListener('click', async ()=> {
   }
 
   if (!resp) {
-    out.textContent = 'Request failed (network/CORS). Make sure server is running at https://dev-playground-8c4p.onrender.com';
+    out.textContent = 'Request failed (network/CORS). Make sure server is running at ' + API_ENDPOINT;
     setBusy(false, 'Error');
     return;
   }
@@ -611,11 +604,52 @@ btn.addEventListener('click', async ()=> {
   try { parsed = JSON.parse(text); } catch(e) { parsed = null; }
 
   lastResponse = parsed || { raw: text };
-  // keep output hidden by default (we use table)
+  // keep output hidden by default (we use table/panels)
   out.textContent = tryPretty(text);
-  // replaced terse "HTTP 200 OK" message with a friendlier status string
-  setBusy(false, `Response received — ${resp.status} ${resp.statusText}`);
+  setBusy(false, `Done! Select a view to see comparisons.😎`);
 });
+
+/* ---------------------------
+   Gene Identity rendering
+   --------------------------- */
+
+/* small helper to avoid basic HTML injection when injecting values */
+function escapeHtml(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// create the HTML for one gene card (safe rendering for basic values)
+function createCardHTML(geneData = {}, title = 'Gene') {
+  const sym = geneData.gene_symbol || 'N/A';
+  const full = geneData.full_name || 'N/A';
+  const org = (geneData.organism || 'N/A').replace(/_/g, ' ');
+  const ens = geneData.ensembl_id || 'N/A';
+  return `
+    <div class="gene-card">
+      <h3>${escapeHtml(title)}</h3>
+      <p><strong>Symbol:</strong> ${escapeHtml(sym)}</p>
+      <p><strong>Full Name:</strong> ${escapeHtml(full)}</p>
+      <p><strong>Organism:</strong> <em>${escapeHtml(org)}</em></p>
+      <p><strong>Ensembl ID:</strong> <code>${escapeHtml(ens)}</code></p>
+    </div>`;
+}
+
+// Renders gene identity into the panel. Expects resp = { annotations: [annA, annB] }
+function renderGeneIdentity(resp) {
+  const container = document.getElementById('gene-identity-container');
+  if (!container) return;
+  if (!resp || !Array.isArray(resp.annotations)) {
+    container.innerHTML = '<div style="color:#888">No gene data available.</div>';
+    return;
+  }
+  const [annA = {}, annB = {}] = resp.annotations;
+  container.innerHTML = createCardHTML(annA, 'Gene A') + createCardHTML(annB, 'Gene B');
+}
 
 /* ---------------------------
    TABLE + CSV generation
@@ -623,7 +657,7 @@ btn.addEventListener('click', async ()=> {
 
 /*
   Build rows in vertical fashion:
-  Each row -> { ensembl_id, gene_symbol, go_id, go_term }
+  Each row -> { ensembl_id, go_id, go_term }
   If a gene has zero GO terms, include one row with empty go_id/go_term.
 */
 function buildTableRowsFromResponse(resp) {
@@ -632,20 +666,19 @@ function buildTableRowsFromResponse(resp) {
 
   for (const ann of resp.annotations) {
     const enid = normalizeString(ann.ensembl_id || "");
-    const symbol = normalizeString(ann.gene_symbol || "");
     // Use arrays (safely)
     const goIds = Array.isArray(ann.go_ids) ? ann.go_ids.slice() : [];
     const goTerms = Array.isArray(ann.go_terms) ? ann.go_terms.slice() : [];
 
     // If there are GO IDs, list each on its own row (vertical)
     if (goIds.length === 0) {
-      rows.push({ ensembl_id: enid, gene_symbol: symbol, go_id: "", go_term: "" });
+      rows.push({ ensembl_id: enid, go_id: "", go_term: "" });
     } else {
       // If goTerms length differs, fallback to empty strings for missing indexes
       for (let i = 0; i < goIds.length; i++) {
         const gid = normalizeString(goIds[i] || "");
         const gterm = normalizeString(goTerms[i] || "");
-        rows.push({ ensembl_id: enid, gene_symbol: symbol, go_id: gid, go_term: gterm });
+        rows.push({ ensembl_id: enid, go_id: gid, go_term: gterm });
       }
     }
   }
@@ -668,7 +701,7 @@ function renderTableFromResponse(resp) {
   table.className = 'compare';
   const thead = document.createElement('thead');
   const headerRow = document.createElement('tr');
-  ['Ensembl ID','Gene symbol','GO ID','GO term'].forEach(h => {
+  ['Ensembl ID','GO ID','GO term'].forEach(h => {
     const th = document.createElement('th');
     th.textContent = h;
     headerRow.appendChild(th);
@@ -680,9 +713,8 @@ function renderTableFromResponse(resp) {
   for (const r of rows) {
     const tr = document.createElement('tr');
     const td1 = document.createElement('td'); td1.textContent = r.ensembl_id; tr.appendChild(td1);
-    const td2 = document.createElement('td'); td2.textContent = r.gene_symbol; tr.appendChild(td2);
-    const td3 = document.createElement('td'); td3.textContent = r.go_id; tr.appendChild(td3);
-    const td4 = document.createElement('td'); td4.textContent = r.go_term; tr.appendChild(td4);
+    const td2 = document.createElement('td'); td2.textContent = r.go_id; tr.appendChild(td2);
+    const td3 = document.createElement('td'); td3.textContent = r.go_term; tr.appendChild(td3);
     tbody.appendChild(tr);
   }
   table.appendChild(tbody);
@@ -695,7 +727,7 @@ function renderTableFromResponse(resp) {
   downloadCsvBtn._csvRows = rows;
 }
 
-/* Convert rows array -> CSV string */
+/* Convert rows array -> CSV string (no gene symbol column) */
 function rowsToCsv(rows) {
   const esc = (v) => {
     if (v === null || v === undefined) return '';
@@ -706,10 +738,10 @@ function rowsToCsv(rows) {
     }
     return s;
   };
-  const header = ['Ensembl ID','Gene symbol','GO ID','GO term'];
+  const header = ['Ensembl ID','GO ID','GO term'];
   const lines = [header.map(esc).join(',')];
   for (const r of rows) {
-    lines.push([r.ensembl_id, r.gene_symbol, r.go_id, r.go_term].map(esc).join(','));
+    lines.push([r.ensembl_id, r.go_id, r.go_term].map(esc).join(','));
   }
   return lines.join('\n');
 }
@@ -784,14 +816,8 @@ document.addEventListener('click', function(e){
     return;
   }
 });
-</script>
 
-<!-- hidden anchor text for accessibility -->
-<pre id="example-ids" aria-hidden="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;white-space:pre;">
-A: ENSG00000124610
-B: ENSG00000168298
-Example to see the intersection representation.
-</pre>
+/* hidden anchor text for accessibility was in first half; nothing more here */
+</script>
 </body>
 </html>
-
